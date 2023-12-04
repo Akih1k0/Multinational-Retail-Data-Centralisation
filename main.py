@@ -115,20 +115,21 @@ if __name__ == '__main__':
     Main script to process and upload data to the local database.
     """
     # Upload user data
-    upload_user()
+    #upload_user()
 
     # Upload card details data
-    upload_card_details()
+    #upload_card_details()
 
     # Upload store details data
-    upload_store_details()
+    #upload_store_details()
 
     # Upload product details data
     upload_product_details()
 
     # Upload product orders data
-    product_orders()
+    #product_orders()
 
     # Upload date details data
-    date_details()
+    #date_details()
+
 # %%

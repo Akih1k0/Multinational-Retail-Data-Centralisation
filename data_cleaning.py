@@ -64,6 +64,8 @@ class DataCleaning:
         df.loc[(df['country_code'] == 'GB') & (~df['phone_number'].astype(str).str.match(uk_regex)), 'phone_number',] = np.nan
         df.loc[(df['country_code'] == 'DE') & (~df['phone_number'].astype(str).str.match(de_regex)), 'phone_number',] = np.nan
         df.loc[(df['country_code'] == 'US') & (~df['phone_number'].astype(str).str.match(us_regex)), 'phone_number',] = np.nan
+
+        df = df[df['user_uuid'].apply(lambda x: valid_uuid(x))]
         
         return df
 
@@ -119,7 +121,7 @@ class DataCleaning:
         df['opening_date'] = pd.to_datetime(df['opening_date'], errors='coerce').dt.strftime('%Y-%m-%d')
 
         # Staff numbers processing
-        df['staff_numbers'] = df['staff_numbers'].str.replace('[^0-9]', '')
+        df["staff_numbers"] = pd.to_numeric(df["staff_numbers"].str.extract("(\d+)", expand=False), errors="coerce")
 
         # Replace N/A with NaN
         df.dropna(inplace=True)
@@ -212,8 +214,7 @@ class DataCleaning:
                            'weight': 'weight_kg',
                            'EAN': 'ean',
                            'product_price': 'product_price_gbp',
-                           'removed': 'available',
-                           'uuid': 'user_uuid'}
+                           'removed': 'still_available'}
                            )
 
         # Sets index
