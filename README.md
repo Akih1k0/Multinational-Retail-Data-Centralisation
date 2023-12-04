@@ -14,7 +14,7 @@ The Multinational Retail Data Centralization project centralizes retail data fro
 - [Project Structure](#project-structure)
 - [License](#license)
 
-## ## Installation
+## Installation
 1. Clone the repository: `git clone [repository-url]`
 2. Install all required packages shown in `imports.txt` using `pip install -r imports.txt`
 
