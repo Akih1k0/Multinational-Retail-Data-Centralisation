@@ -1,5 +1,5 @@
 # Imports.
-from sqlalchemy import create_engine
+from data_extraction import DataExtractor
 import pandas as pd
 import numpy as np
 import re
@@ -8,9 +8,11 @@ import uuid
 
 class DataCleaning:
 
+    def __init__(self):
+        self.de = DataExtractor()
 
 # Cleans the users data
-    def clean_user_data(self, df):
+    def clean_user_data(self):
         """A class for cleaning and transforming data.
 
     Attributes:
@@ -46,31 +48,34 @@ class DataCleaning:
 
     """
 
+        # Read data
+        user_df = self.de.read_rds_table('legacy_users')
+        
         # Get rid of Null and duplicates
-        self.null_cleaning(df)
+        self.null_cleaning(user_df)
 
         # Set to a uniform date using datetime format
-        df['date_of_birth'] = pd.to_datetime(df['date_of_birth'], errors='coerce').dt.strftime('%Y-%m-%d')
-        df['join_date'] = pd.to_datetime(df['join_date'], errors='coerce').dt.strftime('%Y-%m-%d')
+        user_df['date_of_birth'] = pd.to_datetime(user_df['date_of_birth'], errors='coerce').dt.strftime('%Y-%m-%d')
+        user_df['join_date'] = pd.to_datetime(user_df['join_date'], errors='coerce').dt.strftime('%Y-%m-%d')
 
         # Make the country code for UK GB
-        df.loc[df['country'] == 'United Kingdom', 'country_code'] = 'GB'
+        user_df.loc[user_df['country'] == 'United Kingdom', 'country_code'] = 'GB'
 
         # Gets rid of phone numbers in invalid form using regex
         uk_regex = r"^(?:(?:\+44\s?\(0\)\s?\d{2,4}|\(?\d{2,5}\)?)\s?\d{3,4}\s?\d{3,4}$|\d{10,11}|\+44\s?\d{2,5}\s?\d{3,4}\s?\d{3,4})$"
         de_regex = r"(\(?([\d \-\)\–\+\/\(]+){6,}\)?([ .\-–\/]?)([\d]+))"
         us_regex = r"\(?\d{3}\)?-? *\d{3}-? *-?\d{4}"
 
-        df.loc[(df['country_code'] == 'GB') & (~df['phone_number'].astype(str).str.match(uk_regex)), 'phone_number',] = np.nan
-        df.loc[(df['country_code'] == 'DE') & (~df['phone_number'].astype(str).str.match(de_regex)), 'phone_number',] = np.nan
-        df.loc[(df['country_code'] == 'US') & (~df['phone_number'].astype(str).str.match(us_regex)), 'phone_number',] = np.nan
+        user_df.loc[(user_df['country_code'] == 'GB') & (~user_df['phone_number'].astype(str).str.match(uk_regex)), 'phone_number',] = np.nan
+        user_df.loc[(user_df['country_code'] == 'DE') & (~user_df['phone_number'].astype(str).str.match(de_regex)), 'phone_number',] = np.nan
+        user_df.loc[(user_df['country_code'] == 'US') & (~user_df['phone_number'].astype(str).str.match(us_regex)), 'phone_number',] = np.nan
 
-        df = df[df['user_uuid'].apply(lambda x: valid_uuid(x))]
+        user_df = user_df[user_df['user_uuid'].apply(lambda x: valid_uuid(x))]
         
-        return df
+        return user_df
 
 # Cleans the card data
-    def clean_card_data(self, df):
+    def clean_card_data(self):
         """Cleans and processes user data.
 
         Args:
@@ -81,20 +86,23 @@ class DataCleaning:
 
         """
 
+        # Read data
+        card_df = self.de.retrieve_pdf_data()
+
         # Get rid of Null and duplicates
-        self.null_cleaning(df)
+        self.null_cleaning(card_df)
 
         # Set to a uniform date using datetime format
-        df['date_payment_confirmed'] = pd.to_datetime(df['date_payment_confirmed'], errors='coerce').dt.strftime('%Y-%m-%d')
+        card_df['date_payment_confirmed'] = pd.to_datetime(card_df['date_payment_confirmed'], errors='coerce').dt.strftime('%Y-%m-%d')
 
         # Corrects invalid numbers
-        df['card_number'] = df['card_number'].apply(str)
-        df['card_number'] = df['card_number'].str.replace('\W', '', regex=True)
+        card_df['card_number'] = card_df['card_number'].apply(str)
+        card_df['card_number'] = card_df['card_number'].str.replace('\W', '', regex=True)
 
-        return df
+        return card_df
 
 # Cleans store data
-    def clean_store_data(self, df):
+    def clean_store_data(self):
         """Cleans and processes card data.
 
         Args:
@@ -104,34 +112,34 @@ class DataCleaning:
             pandas.DataFrame: The cleaned and processed card data.
 
         """
-
-        # Makes Null strings NaN
-        df.replace('NULL', np.nan, inplace=True)
+        
+        # Read data
+        store_df = self.de.retrieve_stores_data()
 
         # Removes exta latitude column
-        df.drop(columns='lat', inplace=True)
+        store_df.drop(columns='lat', inplace=True)
 
         # Corrects continent names and processes invalid country codes
-        df.loc[df['continent'] == 'eeEurope', 'continent'] = 'Europe'
-        df.loc[df['continent'] == 'eeAmerica', 'continent'] = 'America'
-
-        df.loc[~df['country_code'].isin(['GB','DE', 'US']), 'country_code'] = np.nan
+        store_df.loc[store_df['continent'] == 'eeEurope', 'continent'] = 'Europe'
+        store_df.loc[store_df['continent'] == 'eeAmerica', 'continent'] = 'America'
 
         # Set to a uniform date using datetime format
-        df['opening_date'] = pd.to_datetime(df['opening_date'], errors='coerce').dt.strftime('%Y-%m-%d')
+        store_df['opening_date'] = pd.to_datetime(store_df['opening_date'], errors='coerce').dt.strftime('%Y-%m-%d')
 
         # Staff numbers processing
-        df["staff_numbers"] = pd.to_numeric(df["staff_numbers"].str.extract("(\d+)", expand=False), errors="coerce")
+        store_df['staff_numbers'] = pd.to_numeric(store_df['staff_numbers'].str.replace(r'\D', '', regex=True))
 
         # Replace N/A with NaN
-        df.dropna(inplace=True)
-        df.replace('N/A', np.nan, inplace=True)
-        df.set_index(['index'], inplace=True)
+        store_df.replace('N/A', np.nan, inplace=True)
+
+        # Makes sure all country codes are valid
+        valid_country_codes = ['GB', 'US', 'DE']
+        store_df = store_df[store_df['country_code'].isin(valid_country_codes)]
         
-        return df
+        return store_df
     
 # Unit conversion of the weight column
-    def convert_product_weights(self, df):
+    def convert_product_weights(self):
         """Converts and standardizes product weights.
 
         Args:
@@ -142,11 +150,14 @@ class DataCleaning:
 
         """
 
+        # Reads data
+        product_df = self.de.extract_from_s3('s3://data-handling-public/products.csv')
+
         # Converts values into string format
-        df['weight'] = df['weight'].apply(str)
+        product_df['weight'] = product_df['weight'].apply(str)
 
         # Copies weight column for referencing later on
-        df['weight_1'] = df['weight']
+        product_df['weight_1'] = product_df['weight']
 
         # Converts multiplication
         def convert_to_kg(weight_str):
@@ -169,22 +180,22 @@ class DataCleaning:
                     return None
                 
         # Applies the conditions above to complete the multiplication and return the float value
-        df["weight"] = df["weight_1"].apply(convert_to_kg)
+        product_df["weight"] = product_df["weight_1"].apply(convert_to_kg)
 
         # Creates units column
         units = re.compile(r'(\d+)([gkmlKGML]+)')
-        df['units'] = df['weight_1'].str.extract(units).iloc[:, 1]
+        product_df['units'] = product_df['weight_1'].str.extract(units).iloc[:, 1]
 
         # Converts all values to kg form
-        df['weight'] = df.apply(lambda x: x['weight']/1000 if x['units']== 'g' or x['units']== 'ml' else x['weight'], axis=1)
+        product_df['weight'] = product_df.apply(lambda x: x['weight']/1000 if x['units']== 'g' or x['units']== 'ml' else x['weight'], axis=1)
 
         # Removes the columns used for referencing
-        df.drop(columns=['units', 'weight_1'], inplace=True)
+        product_df.drop(columns=['units', 'weight_1'], inplace=True)
 
-        return df
+        return product_df
     
-# Cleans Product data
-    def clean_product_data(self, df):
+# Cleans product data
+    def clean_product_data(self):
         """Cleans and processes product data.
 
         Args:
@@ -195,22 +206,25 @@ class DataCleaning:
 
         """
         
+        # Gets data
+        product_df = self.convert_product_weights()
+
         # Removing special characters from start of price
-        df['product_price'] = pd.to_numeric(df['product_price'].str.slice(1), errors='coerce').round(2)
+        product_df['product_price'] = pd.to_numeric(product_df['product_price'].str.slice(1), errors='coerce').round(2)
 
         # Set to a uniform date using datetime format
-        df['date_added'] = pd.to_datetime(df['date_added'], errors='coerce').dt.date
+        product_df['date_added'] = pd.to_datetime(product_df['date_added'], errors='coerce').dt.date
 
         # Make the avalability column boolean data of True or False and fix spelling mistake iof available
-        df['removed'] = np.where(df['removed'] == 'Still_avaliable', True, False)
+        product_df['removed'] = np.where(product_df['removed'] == 'Still_avaliable', True, False)
 
         # UUIDs processing
         uuid_pattern = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-        df = df[df["uuid"].apply(lambda x: bool(re.match(uuid_pattern, str(x))))]
+        product_df = product_df[product_df["uuid"].apply(lambda x: bool(re.match(uuid_pattern, str(x))))]
 
         # Giving columns appropriate names
-        df_copy = df.copy()
-        df = df_copy.rename(columns={'Unnamed: 0': 'index',
+        product_df_copy = product_df.copy()
+        product_df = product_df_copy.rename(columns={'Unnamed: 0': 'index',
                            'weight': 'weight_kg',
                            'EAN': 'ean',
                            'product_price': 'product_price_gbp',
@@ -218,11 +232,12 @@ class DataCleaning:
                            )
 
         # Sets index
-        df.set_index(['index'], inplace=True)
+        product_df.set_index(['index'], inplace=True)
 
-        return df
+        return product_df
     
-    def clean_orders_table(self, df):
+# Cleans orders data
+    def clean_orders_table(self):
         """Cleans and processes orders data.
 
         Args:
@@ -233,22 +248,24 @@ class DataCleaning:
 
         """
 
+        # Reads data
+        order_df = self.de.read_rds_table('orders_table')
         # Processing columns to keep whats relevant
-        df.drop(columns=['first_name', 'last_name', '1'], inplace=True, errors='ignore')
-        df.set_index(['index'], inplace=True)
-        df.rename(columns={'level_0': 'order_id'}, inplace=True)
-
-        # UUID testing
-        df = df[df['user_uuid'].apply(lambda x: valid_uuid(x))]
-        df = df[df['date_uuid'].apply(lambda x: valid_uuid(x))]
+        order_df.drop(columns=['first_name', 'last_name', '1'], inplace=True, errors='ignore')
 
         # Null cleaning
-        self.null_cleaning(df)
+        order_df.rename(columns={'level_0': 'order_id'}, inplace=True)
 
-        return df
+        # UUID testing
+        order_df = order_df[order_df['user_uuid'].apply(lambda x: valid_uuid(x))]
+
+        # Index
+        order_df.set_index(['index'], inplace=True)
+
+        return order_df
     
 # Cleans date details
-    def clean_dates(self, df):
+    def clean_dates(self):
         """Cleans and processes date details.
 
         Args:
@@ -259,19 +276,22 @@ class DataCleaning:
 
         """
 
+        # Reads data
+        data_df = self.de.extract_from_s3('https://data-handling-public.s3.eu-west-1.amazonaws.com/date_details.json')
+
         # Removes null values in the specified columns
-        self.null_cleaning(df)
+        self.null_cleaning(data_df)
 
         # Validating time periods
         valid_period = ["Late_Hours", "Morning", "Midday", "Evening"]
-        df = df[df['time_period'].isin(valid_period)]
+        data_df = data_df[data_df['time_period'].isin(valid_period)]
 
          # Changes values into numeric format
-        df.loc[:, 'day'] = pd.to_numeric(df['day'], errors='coerce')
-        df.loc[:, 'month'] = pd.to_numeric(df['month'], errors='coerce')
-        df.loc[:, 'year'] = pd.to_numeric(df['year'], errors='coerce')
+        data_df.loc[:, 'day'] = pd.to_numeric(data_df['day'], errors='coerce')
+        data_df.loc[:, 'month'] = pd.to_numeric(data_df['month'], errors='coerce')
+        data_df.loc[:, 'year'] = pd.to_numeric(data_df['year'], errors='coerce')
         
-        return df
+        return data_df
 
 # Funct to clean all Null values
     def null_cleaning(self, df):

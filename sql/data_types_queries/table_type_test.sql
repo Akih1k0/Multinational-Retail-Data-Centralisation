@@ -26,9 +26,6 @@ WHERE table_name = 'dim_products';
 SELECT *
 FROM dim_products;
 
-SELECT *
-FROM dim_date_times;
-
 SELECT column_name, data_type
 FROM information_schema.columns
 WHERE table_name = 'dim_date_times';

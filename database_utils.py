@@ -1,8 +1,9 @@
-import psycopg2
-import pandas as pd
+#%%
+# Imports
 import yaml
 from sqlalchemy import create_engine
 from sqlalchemy import inspect
+
 
 class DatabaseConnector:
     """A class for connecting to a remote PostgreSQL database and performing operations.
@@ -25,7 +26,7 @@ class DatabaseConnector:
 
     """
 
-    def read_db_creds(self, name):
+    def read_db_creds(self, file_name):
         """Reads the database credentials from a YAML file.
 
         Args:
@@ -35,7 +36,8 @@ class DatabaseConnector:
             dict: A dictionary containing the database credentials.
 
         """
-        with open(name, 'r') as stream:
+
+        with open(file_name, 'r') as stream:
             return yaml.safe_load(stream)
 
     def init_db_engine(self, creds):
@@ -81,3 +83,30 @@ class DatabaseConnector:
         """
         df.to_sql(table_name, engine, index=False, if_exists='replace')
         return df
+    
+if __name__ == '__main__':
+    
+    # Import DataCleaning
+    from data_cleaning import DataCleaning
+    
+    # Classes and engine
+    db = DatabaseConnector()
+    dc = DataCleaning()
+    local_engine = db.init_db_engine(db.read_db_creds('db_creds_local.yaml'))
+
+    # Clean data
+    clean_users = dc.clean_user_data()
+    clean_card_details = dc.clean_card_data()
+    clean_store_details = dc.clean_store_data()
+    clean_products = dc.clean_product_data()
+    clean_orders = dc.clean_orders_table()
+    clean_dates = dc.clean_dates()
+
+    # Upload data
+    db.upload_to_db(clean_users, 'dim_users', local_engine)
+    db.upload_to_db(clean_card_details, 'dim_card_details', local_engine)
+    db.upload_to_db(clean_store_details, 'dim_store_details', local_engine)
+    db.upload_to_db(clean_products, 'dim_products', local_engine)
+    db.upload_to_db(clean_orders, 'orders_table', local_engine)
+    db.upload_to_db(clean_dates, 'dim_date_times', local_engine)
+# %%

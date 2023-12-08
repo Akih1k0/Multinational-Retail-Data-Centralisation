@@ -1,8 +1,10 @@
+# Imports
+from database_utils import DatabaseConnector
 import boto3
 import pandas as pd
-import json
 import requests
 import tabula
+
 
 class DataExtractor:
     """A class for extracting data from various sources.
@@ -30,13 +32,21 @@ class DataExtractor:
             Retrieves and returns data from an S3 bucket based on the provided URL.
 
     """
+    
+    # DatabaseConnector class
+    db = DatabaseConnector()
 
+    # Argument dependencies
     HEADERS = {'x-api-key': 'yFBQbwXe9J3sd6zWVAMrK6lcxxr0q1lr2PT6DDMX'}
     NO_STORES_URL = 'https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/number_stores'
     STORE_DETAIL_URL = 'https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/store_details'
     S3_URL_PATH = 's3://data-handling-public/products.csv'
 
-    def read_rds_table(self, engine, table_name):
+    # Engine and Table
+    engine = db.init_db_engine(db.read_db_creds('db_creds.yaml'))
+    rds_tables = db.list_db_tables(engine)
+
+    def read_rds_table(self, table_name, engine=engine):
         """Reads and returns data from a specified RDS table.
 
         Args:
@@ -50,7 +60,7 @@ class DataExtractor:
         with engine.connect():
             return pd.read_sql(table_name, engine)
 
-    def retrieve_pdf_data(self, link):
+    def retrieve_pdf_data(self, link='https://data-handling-public.s3.eu-west-1.amazonaws.com/card_details.pdf'):
         """Retrieves data from a PDF file specified by the link.
 
         Args:
@@ -74,10 +84,11 @@ class DataExtractor:
             dict: The JSON response containing the number of stores.
 
         """
-        response = requests.get(url, headers=headers)
-        return response.json()
+        stores = requests.get(url, headers=headers)
+        number_of_stores = stores.json()
+        return number_of_stores['number_stores']
 
-    def retrieve_stores_data(self, number_of_stores=451, main_url=STORE_DETAIL_URL, headers=HEADERS):
+    def retrieve_stores_data(self, main_url=STORE_DETAIL_URL, headers=HEADERS):
         """Retrieves and returns store data from an API.
 
         Args:
@@ -90,12 +101,13 @@ class DataExtractor:
 
         """
         store_list = []
+        number_of_stores = self.list_number_of_stores()
         for store_number in range(0, number_of_stores):
-            url = f'{main_url}/{store_number}'
+            url = f'{main_url}/'+str(store_number)
             response = requests.get(url, headers=headers).json()
             store_list.append(response)
 
-        return pd.DataFrame(store_list)
+        return pd.json_normalize(store_list)
 
     def extract_from_s3(self, url):
         """Retrieves and returns data from an S3 bucket based on the provided URL.
