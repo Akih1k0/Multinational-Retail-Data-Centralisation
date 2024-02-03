@@ -63,12 +63,22 @@ class DataCleaning:
 
         # Gets rid of phone numbers in invalid form using regex
         uk_regex = r"^(?:(?:\+44\s?\(0\)\s?\d{2,4}|\(?\d{2,5}\)?)\s?\d{3,4}\s?\d{3,4}$|\d{10,11}|\+44\s?\d{2,5}\s?\d{3,4}\s?\d{3,4})$"
-        de_regex = r"(\(?([\d \-\)\–\+\/\(]+){6,}\)?([ .\-–\/]?)([\d]+))"
+        de_regex = r"(\(?([\d \-\)\–\+\/\(]+){6,}\)?([ .\-–\/]?)([\d]+))" 
         us_regex = r"\(?\d{3}\)?-? *\d{3}-? *-?\d{4}"
 
-        user_df.loc[(user_df['country_code'] == 'GB') & (~user_df['phone_number'].astype(str).str.match(uk_regex)), 'phone_number',] = np.nan
-        user_df.loc[(user_df['country_code'] == 'DE') & (~user_df['phone_number'].astype(str).str.match(de_regex)), 'phone_number',] = np.nan
-        user_df.loc[(user_df['country_code'] == 'US') & (~user_df['phone_number'].astype(str).str.match(us_regex)), 'phone_number',] = np.nan
+        # Fixes the phone number structure
+        country_codes = ['GB', 'DE', 'US']
+
+        for code in country_codes:
+            regex_pattern = {
+                'GB': uk_regex,
+                'DE': de_regex,
+                'US': us_regex
+            }
+
+        mask = user_df['country_code'] == code
+        user_df.loc[mask, 'phone_number'] = user_df.loc[mask, 'phone_number'].astype(str).str.replace(f"^{regex_pattern[code]}", "", regex=True)
+        user_df.loc[mask, 'phone_number'] = user_df.loc[mask, 'phone_number'].replace('', np.nan)
 
         user_df = user_df[user_df['user_uuid'].apply(lambda x: valid_uuid(x))]
         
@@ -120,8 +130,13 @@ class DataCleaning:
         store_df.drop(columns='lat', inplace=True)
 
         # Corrects continent names and processes invalid country codes
-        store_df.loc[store_df['continent'] == 'eeEurope', 'continent'] = 'Europe'
-        store_df.loc[store_df['continent'] == 'eeAmerica', 'continent'] = 'America'
+        continents = {
+            'eeEurope': 'Europe',
+            'eeAmerica': 'America'
+        }
+        
+        for wrong, correct in continents.items():
+            store_df.loc[store_df['continent'] == wrong, 'continent'] = correct
 
         # Set to a uniform date using datetime format
         store_df['opening_date'] = pd.to_datetime(store_df['opening_date'], errors='coerce').dt.strftime('%Y-%m-%d')
@@ -164,6 +179,8 @@ class DataCleaning:
             if "x" in weight_str:
                 parts = weight_str.split("x")
                 try:
+                    # The regular expression (\d+(\.\d+)?) is used to match and capture a numerical value, including decimals.
+                    # It ensures that both integer and decimal quantities are correctly captured.   
                     quantity = float(re.findall(r"(\d+(\.\d+)?)", parts[0])[0][0])
                     unit_weight = float(re.findall(r"(\d+(\.\d+)?)", parts[1])[0][0])
                     total_weight = quantity * unit_weight
@@ -183,7 +200,7 @@ class DataCleaning:
         product_df["weight"] = product_df["weight_1"].apply(convert_to_kg)
 
         # Creates units column
-        units = re.compile(r'(\d+)([gkmlKGML]+)')
+        units = re.compile(r'(\d+)([gkmlKGML]+)') 
         product_df['units'] = product_df['weight_1'].str.extract(units).iloc[:, 1]
 
         # Converts all values to kg form
@@ -219,7 +236,7 @@ class DataCleaning:
         product_df['removed'] = np.where(product_df['removed'] == 'Still_avaliable', True, False)
 
         # UUIDs processing
-        uuid_pattern = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+        uuid_pattern = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" 
         product_df = product_df[product_df["uuid"].apply(lambda x: bool(re.match(uuid_pattern, str(x))))]
 
         # Giving columns appropriate names
@@ -286,10 +303,10 @@ class DataCleaning:
         valid_period = ["Late_Hours", "Morning", "Midday", "Evening"]
         data_df = data_df[data_df['time_period'].isin(valid_period)]
 
-         # Changes values into numeric format
-        data_df.loc[:, 'day'] = pd.to_numeric(data_df['day'], errors='coerce')
-        data_df.loc[:, 'month'] = pd.to_numeric(data_df['month'], errors='coerce')
-        data_df.loc[:, 'year'] = pd.to_numeric(data_df['year'], errors='coerce')
+        # Changes values into numeric format
+        column_name = ['day', 'month', 'year']
+        for column in column_name:
+            data_df.loc[:, column] = pd.to_numeric(data_df[column], errors='coerce')
         
         return data_df
 

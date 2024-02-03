@@ -4,6 +4,7 @@ import boto3
 import pandas as pd
 import requests
 import tabula
+from arguments import HEADERS, NO_STORES_URL, STORE_DETAIL_URL, S3_URL_PATH
 
 
 class DataExtractor:
@@ -32,15 +33,9 @@ class DataExtractor:
             Retrieves and returns data from an S3 bucket based on the provided URL.
 
     """
-    
+
     # DatabaseConnector class
     db = DatabaseConnector()
-
-    # Argument dependencies
-    HEADERS = {'x-api-key': 'yFBQbwXe9J3sd6zWVAMrK6lcxxr0q1lr2PT6DDMX'}
-    NO_STORES_URL = 'https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/number_stores'
-    STORE_DETAIL_URL = 'https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/store_details'
-    S3_URL_PATH = 's3://data-handling-public/products.csv'
 
     # Engine and Table
     engine = db.init_db_engine(db.read_db_creds('db_creds.yaml'))
@@ -136,3 +131,4 @@ class DataExtractor:
             raise ValueError('Unsupported file type. File is not a CSV or JSON file')
 
         return df
+    

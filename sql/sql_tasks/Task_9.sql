@@ -9,7 +9,7 @@ next_time_date_with_date AS (
 	SELECT
 		year,
 		date_time,
-		LEAD(date_time, 1) OVER (PARTITION BY year ORDER BY date_time) AS next_time_date
+		LEAD(date_time, 1) OVER (ORDER BY date_time) AS next_time_date
 	FROM
 		join_time_with_date
 ),

@@ -50,9 +50,10 @@ class DatabaseConnector:
             sqlalchemy.engine.Engine: An SQLAlchemy database engine.
 
         """
+
         engine = create_engine(
-            f"postgresql://{creds['RDS_USER']}:{creds['RDS_PASSWORD']}@"
-            f"{creds['RDS_HOST']}:{creds['RDS_PORT']}/{creds['RDS_DATABASE']}"
+            f"postgresql://{creds['USER']}:{creds['PASSWORD']}@"
+            f"{creds['HOST']}:{creds['PORT']}/{creds['DATABASE']}"
         )
         return engine
 
@@ -85,10 +86,8 @@ class DatabaseConnector:
         return df
     
 if __name__ == '__main__':
-    
-    # Import DataCleaning
+
     from data_cleaning import DataCleaning
-    
     # Classes and engine
     db = DatabaseConnector()
     dc = DataCleaning()
@@ -103,10 +102,15 @@ if __name__ == '__main__':
     clean_dates = dc.clean_dates()
 
     # Upload data
-    db.upload_to_db(clean_users, 'dim_users', local_engine)
-    db.upload_to_db(clean_card_details, 'dim_card_details', local_engine)
-    db.upload_to_db(clean_store_details, 'dim_store_details', local_engine)
-    db.upload_to_db(clean_products, 'dim_products', local_engine)
-    db.upload_to_db(clean_orders, 'orders_table', local_engine)
-    db.upload_to_db(clean_dates, 'dim_date_times', local_engine)
+    clean_dict = {
+        'dim_users': clean_users,
+        'dim_card_details': clean_card_details,
+        'dim_store_details': clean_store_details,
+        'dim_products': clean_products,
+        'orders_table': clean_orders,
+        'dim_date_times': clean_dates
+    }
+
+    for name, clean_data in clean_dict.items():
+        db.upload_to_db(clean_data, name, local_engine)
 # %%
