@@ -91,7 +91,7 @@ if __name__ == '__main__':
     # Classes and engine
     db = DatabaseConnector()
     dc = DataCleaning()
-    local_engine = db.init_db_engine(db.read_db_creds('db_creds_local.yaml'))
+    local_engine = db.init_db_engine(db.read_db_creds('local_creds.yaml'))
 
     # Clean data
     clean_users = dc.clean_user_data()

@@ -1,6 +1,0 @@
-HOST: localhost
-PASSWORD: samiadam10
-USER: postgres
-DATABASE: sales_data
-API: postgres
-PORT: 5432

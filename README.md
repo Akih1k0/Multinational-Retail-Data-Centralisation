@@ -90,5 +90,5 @@ I gained valuable insights into data handling, extraction, and integration withi
 - `data_cleaning.py`: Script for cleaning data.
 - `data_extraction.py`: Script for extracting data from various sources.
 - `database_utils.py`: Utilities for database operations.
-- `db_creds_local.yaml`: Holds the postgres database details.
+- `local_creds.yaml`: Holds the postgres database details.
 - `imports.txt`: Text file containing all imported packages adn libraries.
